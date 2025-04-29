@@ -1,14 +1,14 @@
 from io import BytesIO
-
 import pytest
-from src.app import app, allowed_file
+from src.app import app
+from src.preprocessing.file_utils import allowed_file
+import os
 
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
     with app.test_client() as client:
         yield client
-
 
 @pytest.mark.parametrize("filename, expected", [
     ("file.pdf", True),
@@ -29,10 +29,25 @@ def test_no_selected_file(client):
     response = client.post('/classify_file', data=data, content_type='multipart/form-data')
     assert response.status_code == 400
 
-def test_success(client, mocker):
-    mocker.patch('src.app.classify_file', return_value='test_class')
+@pytest.mark.parametrize("filename, expected", [
+    ("invoice_1.pdf", "invoice"),
+    ("invoice_2.pdf", "invoice"),
+    ("invoice_3.pdf", "invoice"),
+    ("drivers_license_1.jpg", "drivers_license"),
+    ("drivers_license_3.jpg", "drivers_license"),
+    ("drivers_licence_2.jpg", "drivers_license"),
+    ("bank_statement_1.pdf", "bank_statement"),
+    ("bank_statement_2.pdf", "bank_statement"),
+    ("bank_statement_3.pdf", "bank_statement")
+])
+def test_success(client, mocker, filename, expected):
+    # Get the file path
+    file_path = os.path.join('files', filename)
 
-    data = {'file': (BytesIO(b"dummy content"), 'file.pdf')}
-    response = client.post('/classify_file', data=data, content_type='multipart/form-data')
+    # Open the file and send it directly
+    with open(file_path, 'rb') as f:
+        data = {'file': (f, filename)}
+        response = client.post('/classify_file', data=data, content_type='multipart/form-data')
+
     assert response.status_code == 200
-    assert response.get_json() == {"file_class": "test_class"}
+    assert response.get_json()['file_class'] == expected
