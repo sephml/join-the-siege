@@ -1,6 +1,7 @@
 Flask==3.0.3
 pytest==8.3.3
 pytest-mock==3.14.0
+pdfminer.six
 sentence-transformers
 scipy
 numpy
@@ -8,3 +9,4 @@ Pillow
 filetype
 pytesseract
 gunicorn
+celery[redis]

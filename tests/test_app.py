@@ -3,12 +3,22 @@ import pytest
 from src.app import app
 from src.preprocessing.file_utils import allowed_file
 import os
+from unittest.mock import patch, MagicMock
 
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
     with app.test_client() as client:
         yield client
+
+@pytest.fixture
+def mock_celery():
+    with patch('src.app.celery') as mock:
+        mock.AsyncResult.return_value = MagicMock(
+            state='SUCCESS',
+            result={'file_class': 'invoice', 'confidence': 0.95}
+        )
+        yield mock
 
 @pytest.mark.parametrize("filename, expected", [
     ("file.pdf", True),
@@ -41,6 +51,11 @@ def test_no_selected_file(client):
     ("bank_statement_3.pdf", "bank_statement")
 ])
 def test_success(client, mocker, filename, expected):
+    # Mock the Celery task
+    mock_task = mocker.MagicMock()
+    mock_task.id = 'test-task-id'
+    mocker.patch('src.app.classify_file_task.delay', return_value=mock_task)
+
     # Get the file path
     file_path = os.path.join('files', filename)
 
@@ -49,26 +64,27 @@ def test_success(client, mocker, filename, expected):
         data = {'file': (f, filename)}
         response = client.post('/classify_file', data=data, content_type='multipart/form-data')
 
+    assert response.status_code == 202
+    assert response.get_json()['task_id'] == 'test-task-id'
+
+def test_task_status(client, mocker):
+    # Mock the Celery AsyncResult
+    mock_result = mocker.MagicMock()
+    mock_result.state = 'SUCCESS'
+    mock_result.result = {'file_class': 'invoice', 'confidence': 0.95}
+    mocker.patch('src.app.celery.AsyncResult', return_value=mock_result)
+
+    response = client.get('/task_status/test-task-id')
     assert response.status_code == 200
-    assert response.get_json()['file_class'] == expected
+    result = response.get_json()
+    assert result['state'] == 'SUCCESS'
+    assert result['result']['file_class'] == 'invoice'
 
 def test_classify_batch(client, mocker):
-    # Simulate text extraction for all files
-    mocker.patch(
-        "src.preprocessing.text_extraction.extract_text_from_file",
-        side_effect=lambda f: f"mock text from {f.filename}"
-    )
-
-    # Simulate ML predictions
-    mock_predictions = [
-        ("invoice", 0.93),
-        ("bank_statement", 0.91),
-        ("drivers_license", 0.88)
-    ]
-    mocker.patch(
-        "src.models.predict.predict_batch",
-        return_value=mock_predictions
-    )
+    # Mock the Celery task
+    mock_task = mocker.MagicMock()
+    mock_task.id = 'test-batch-task-id'
+    mocker.patch('src.app.classify_batch_task.delay', return_value=mock_task)
 
     data = {
         "files": [
@@ -80,12 +96,6 @@ def test_classify_batch(client, mocker):
 
     response = client.post("/classify_batch", data=data, content_type="multipart/form-data")
     
-    assert response.status_code == 200
+    assert response.status_code == 202
     result = response.get_json()
-
-    assert isinstance(result, list)
-    assert len(result) == 3
-
-    for item, (expected_class, expected_conf) in zip(result, mock_predictions):
-        assert item["file_class"] == expected_class
-        assert item["filename"] in ["invoice_1.pdf", "bank_statement_2.pdf", "drivers_license_1.jpg"]
+    assert result['task_id'] == 'test-batch-task-id'
