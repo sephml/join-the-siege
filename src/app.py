@@ -36,12 +36,12 @@ def classify_batch_route():
 
     results = []
     filenames = [file.filename for file in files]
-    
+
     for fname, (label, confidence) in zip(filenames, predictions):
         results.append({
             "filename": fname,
             "file_class": label,
-            "confidence": round(confidence, 4)
+            "confidence": float(confidence)
         })
 
     return jsonify(results), 200
