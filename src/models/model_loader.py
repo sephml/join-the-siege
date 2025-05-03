@@ -1,5 +1,5 @@
 from sentence_transformers import SentenceTransformer
-import pickle
+import numpy as np
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -18,5 +18,11 @@ CATEGORIES = [
 # Embed class labels
 category_embeddings = model.encode(CATEGORIES)
 
-def get_model_and_embeddings():
+def get_model_and_embeddings() -> tuple[SentenceTransformer, list[str], list[np.ndarray]]:
+    """
+    Get the pre-trained model and category embeddings.
+
+    Returns:
+        tuple[SentenceTransformer, list[str], list[np.ndarray]]: A tuple containing the pre-trained model, the list of categories, and the list of category embeddings.
+    """
     return model, CATEGORIES, category_embeddings

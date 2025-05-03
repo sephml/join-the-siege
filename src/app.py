@@ -9,6 +9,9 @@ model, categories, category_embeddings = get_model_and_embeddings()
 
 @app.route('/classify_file', methods=['POST'])
 def classify_file_route():
+    """
+    Classify a single file.
+    """
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
 
@@ -27,6 +30,9 @@ def classify_file_route():
 
 @app.route('/classify_batch', methods=['POST'])
 def classify_batch_route():
+    """
+    Classify a batch of files.
+    """
     files = request.files.getlist("files")
     if not files:
         return jsonify({"error": "No files uploaded"}), 400

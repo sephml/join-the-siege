@@ -1,8 +1,23 @@
 from scipy.spatial.distance import cosine
 import numpy as np
+from sentence_transformers import SentenceTransformer
+
 CONFIDENCE_THRESHOLD = 0.7
 BATCH_SIZE = 16
-def predict_class(text, model, categories, category_embeddings):
+
+def predict_class(text: str, model: SentenceTransformer, categories: list[str], category_embeddings: list[np.ndarray]) -> tuple[str, np.float32]:
+    """
+    Predict the class of a given text using a pre-trained model and category embeddings.
+    
+    Args:
+        text (str): The text to predict the class of.
+        model: The pre-trained model to use for prediction.
+        categories: The list of categories to predict from.
+        category_embeddings: The list of category embeddings.
+
+    Returns:
+        tuple[str, np.float32]: A tuple containing the predicted class and the confidence score.
+    """
     if not text.strip():
         return "unknown file", np.float32(0.0)
     
@@ -17,7 +32,19 @@ def predict_class(text, model, categories, category_embeddings):
         return "unknown file", np.float32(0.0)
     return categories[best_idx], round(1 - best_score, 3)
 
-def predict_batch(texts, model, categories, category_embeddings):
+def predict_batch(texts: list[str], model: SentenceTransformer, categories: list[str], category_embeddings: list[np.ndarray]) -> list[tuple[str, np.float32]]:
+    """
+    Predict the class of a list of texts using a pre-trained model and category embeddings.
+    
+    Args:
+        texts (list[str]): The list of texts to predict the class of.
+        model: The pre-trained model to use for prediction.
+        categories: The list of categories to predict from.
+        category_embeddings: The list of category embeddings.
+
+    Returns:
+        list[tuple[str, np.float32]]: A list of tuples containing the predicted class and the confidence score.
+    """
     embeddings = model.encode(texts, batch_size=BATCH_SIZE)  # Vectorize all texts
     predictions = []
 
