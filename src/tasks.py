@@ -2,13 +2,18 @@ from celery import shared_task
 from src.preprocessing.text_extraction import extract_text_from_file, parallel_text_extraction
 from src.models.model_loader import get_model_and_embeddings
 from src.models.predict import predict_class, predict_batch
-
+from typing import List, Dict
 model, categories, category_embeddings = get_model_and_embeddings()
 
 @shared_task(name='src.tasks.classify_file_task')
-def classify_file_task(file_content, filename):
+def classify_file_task(file_content: bytes, filename: str):
     """
     Celery task for classifying a single file.
+    Args:
+        file_content (bytes): The content of the file to classify.
+        filename (str): The name of the file to classify.
+    Returns:
+        dict: A dictionary containing the filename, predicted class, and confidence score.
     """
     # Extract text
     extracted_text = extract_text_from_file(file_content)
@@ -23,9 +28,13 @@ def classify_file_task(file_content, filename):
     }
 
 @shared_task(name='src.tasks.classify_batch_task')
-def classify_batch_task(files_data):
+def classify_batch_task(files_data: List[Dict[str, bytes]]):
     """
     Celery task for classifying a batch of files.
+    Args:
+        files_data (list): A list of dictionaries containing the file content and filename.
+    Returns:
+        list: A list of dictionaries containing the filename, predicted class, and confidence score for each file.
     """
     files = [file_data['content'] for file_data in files_data]
     filenames = [file_data['filename'] for file_data in files_data]

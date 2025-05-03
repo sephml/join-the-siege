@@ -42,17 +42,26 @@ def extract_text_from_image(file_storage:BytesIO) -> str:
         print(f"Error extracting image text: {e}")
         return ""
 
-def extract_text_from_file(file_storage:BytesIO) -> str:
+def extract_text_from_file(file_storage: BytesIO) -> str:
     """
     Extract text from a file.
 
     Args:
-        file_storage (BytesIO): The file storage object containing the file.
+        file_storage (BytesIO or bytes): The file storage object containing the file.
 
     Returns:
         str: The extracted text from the file.
     """
-    kind = filetype.guess(file_storage.read(261))  # Read a small chunk
+    # Ensure file_storage is a BytesIO object
+    if isinstance(file_storage, bytes):
+        file_storage = BytesIO(file_storage)
+    elif not hasattr(file_storage, "read"):
+        return ""
+
+    chunk = file_storage.read(261)
+    if not chunk:
+        return ""
+    kind = filetype.guess(chunk)
     file_storage.seek(0)
 
     if kind is None:
