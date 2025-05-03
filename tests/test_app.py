@@ -51,3 +51,41 @@ def test_success(client, mocker, filename, expected):
 
     assert response.status_code == 200
     assert response.get_json()['file_class'] == expected
+
+def test_classify_batch(client, mocker):
+    # Simulate text extraction for all files
+    mocker.patch(
+        "src.preprocessing.text_extraction.extract_text_from_file",
+        side_effect=lambda f: f"mock text from {f.filename}"
+    )
+
+    # Simulate ML predictions
+    mock_predictions = [
+        ("invoice", 0.93),
+        ("bank_statement", 0.91),
+        ("drivers_license", 0.88)
+    ]
+    mocker.patch(
+        "src.models.predict.predict_batch",
+        return_value=mock_predictions
+    )
+
+    data = {
+        "files": [
+            (BytesIO(b"invoice for 1000 USD to this company"), "invoice_1.pdf"),
+            (BytesIO(b"bank statement for 1000 USD"), "bank_statement_2.pdf"),
+            (BytesIO(b"drivers license for John Doe"), "drivers_license_1.jpg"),
+        ]
+    }
+
+    response = client.post("/classify_batch", data=data, content_type="multipart/form-data")
+    
+    assert response.status_code == 200
+    result = response.get_json()
+
+    assert isinstance(result, list)
+    assert len(result) == 3
+
+    for item, (expected_class, expected_conf) in zip(result, mock_predictions):
+        assert item["file_class"] == expected_class
+        assert item["filename"] in ["invoice_1.pdf", "bank_statement_2.pdf", "drivers_license_1.jpg"]
